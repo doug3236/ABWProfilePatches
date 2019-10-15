@@ -27,23 +27,36 @@ SOFTWARE.
 #include <vector>
 #include "color_conversions.h"
 #include "PatchFilter.h"
+#include "cgats.h"
 
 using std::vector;
 using std::string;
 
 struct LabStats {
-    vector<double> distribution_ab0_15;
-    vector<double> distribution_ab0_5;
-    vector<double> distribution_15;
-    vector<double> distribution_5;
+    // synthesized RGBLAB values for use in profiling application
+    vector<V6> rgblab_neutral;
+    vector<V6> rgblab_tint;
+    
+    // All vectors the same size (percents.size()) containing fraction
+    // of samples > corresponding percents
+    array<double,6> percents = { 50, 75, 90, 95, 98, 100 };
+    vector<double> distributionp_ab0_15;
+    vector<double> distributionp_ab0_5;
+    vector<double> distributionp_15;
+    vector<double> distributionp_5;
+    // These used only if repeats > 1 since they are individual sample stats
+    vector<double> distributionp_std_L;
+    vector<double> distributionp_std_a;
+    vector<double> distributionp_std_b;
 
-    vector<double> distribution_std_L;
-    vector<double> distribution_std_a;
-    vector<double> distribution_std_b;
+    V3 white_point;
+    V3 black_point;
+    V3 lab_average;
+    V3 lab_rgb130;
     int repeats;
 };
 
-LabStats make_RGBLAB_CGATS_for_ABW(const string& filename, const string& filenameout);
+LabStats process_cgats_measurement_file(const string& filename);
 void make_RGB_for_ABW(const string& filename, int count, int randomize_and_repeat=0);
 
 vector<V6> make_rgb_synth(PatchFilter& pf, bool color = false);

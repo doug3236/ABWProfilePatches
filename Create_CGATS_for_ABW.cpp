@@ -34,28 +34,28 @@ void usage()
         "     ---------- Step 1 -----------\n"
         "ABWProfilePatches [S|L] [n]\n"
         "  Creates RGB CGATS file Where S generates 52 RGB patches 0:5:255,\n"
-        "  L generates 256 RGB patches 0:1:255 and n (default 2) is number\n"
+        "  L generates 256 RGB patches 0:1:255 and the optional [n] is number\n"
         "  of pattern repeats\n\n"
 
         "     ---------- Step 2 -----------\n"
-        "ABWProfilePatches MeasurementFilename ProfileName\n"
+        "ABWProfilePatches MeasurementFilename [ProfileName]\n"
         "  MeasurementFilename and ProfileName\n"
-        "  Reads a ABW CGATS measurement file of neutral patches and creates\n"
+        "  Reads a ABW CGATS measurement file of neutral patches and optionally creates\n"
         "  synthetic RGBLAB CGATs files named \"ProfileName.txt\" and \"ProfileName_adj.txt\"\n"
         "  from which Argyll or I1Profiler can createICC profiles.\n"
-        "  Then make profiles from these two files.\n\n"
+        "  Then make profiles from these two files.\n"
+        "  If only MeasurementFilename is given, just display statistics\n\n"
 
         "     ---------- Step 3 -----------\n"
         "ABWProfilePatches Profile\n"
         "  Where profile is the name of base profile with a suffix of \".icm\"\n"
-        "  There must be two profiles from the previos step. The second profile has the\n"
+        "  There must be two profiles from the previous step. The second profile has the\n"
         "  same name with \"_adj\" added. The A2B1 tables inside the Profile_adj.icm\n"
         "  will replace the A2B1 table inside Profile.icm.\n\n"
         "" };
     std::cout << message;
     exit(0);
 }
-
 
 int main(int argc, char** argv)
 {
@@ -69,7 +69,7 @@ int main(int argc, char** argv)
         args.push_back(data);
     }
 
-    cout << "-----ABWProfilePatches V1.1-----\n\n";
+    cout << "-----ABWProfileMaker V1.2-----\n";
     if (argc == 1)
         usage();
     try {
@@ -78,70 +78,41 @@ int main(int argc, char** argv)
             int rept{};
             if (args.size() == 2) try { rept = std::stoi(args[1]); } catch (std::exception e) { }
             make_RGB_for_ABW("Neutrals_52.txt", 52, rept);
-            if (rept==0)
-                std::cout << "Making 52 patch set\n" << '\n';
-            else
-                std::cout << "Making randomized 52 patch set repeated " << rept << " times\n";
         }
         else if (args[0] == "L")        //ABWProfilePatches L [n]
         {
             int rept{};
             if (args.size() == 2) try { rept = std::stoi(args[1]); } catch (std::exception e) {}
             make_RGB_for_ABW("Neutrals_256.txt", 256, rept);
-            if (rept == 0)
-                std::cout << "Making 256 patch set\n" << '\n';
-            else
-                std::cout << "Making randomized 256 patch set repeated " << rept << " times\n";
         }
-       else if (args.size()==2 && is_suffix_txt(args[0]) && is_suffix_txt(args[1]))
+        else if (args.size() == 1 && is_suffix_txt(args[0]))
+        {
+            cout << "Statistics for: " << args[0] << "\n\n";
+            LabStats stats = process_cgats_measurement_file(args[0]);
+            void print_stats(const LabStats & stats);
+            print_stats(stats);
+        }
+        else if (args.size()==2 && is_suffix_txt(args[0]) && is_suffix_txt(args[1]))
         {
             cout << "Creating synthetic patch sets\n  From: " << args[0] << "\n"
-                "  To:   " << args[1] << "\nas well as an _adj file.\n\n"
-                "Use these two CGATs files to create ICC profiles.\n";
+            "  To:   " << args[1] << "\nas well as an _adj file.\n\n"
+            "Use these two CGATs files to create ICC profiles.\n\n\n";
 
-            LabStats stats = make_RGBLAB_CGATS_for_ABW(args[0], args[1]);
-            cout << "This is the distribution of dE00s between each RGB location and the average\n"
-                "of the RGB locations 5 steps to either side of it in percentages of patches at\n"
-                "or below a dE00.\n\n";
-            for (const auto x : stats.distribution_5)
-            {
-                static double d = 0;
-                printf("    At or below %3.1f:  %4.1f%%\n", d+=.1, 100*x);
-            }
-            cout << "\nThis is the distribution of dE00s between each RGB location and the average\n"
-                "of the RGB locations 15 steps to either side of it in percentages of patches at\n"
-                "or below a dE00.\n\n";
-            for (const auto x : stats.distribution_15)
-            {
-                static double d = 0;
-                printf("    At or below %3.1f:  %4.1f%%\n", d += .1, 100 * x);
-            }
-            cout << "\nThis is the distribution of standard deviation of L* of the same\n"
-                "RGB patches when RGB duplicates exist.\n\n";
-                for (const auto x : stats.distribution_std_L)
-                {
-                    static double d = 0;
-                    printf("    At or below %3.1f:  %4.1f%%\n", d += .1, 100 * x);
-                }
-                cout << "\nThis is the distribution of standard deviation of a* of the same\n"
-                    "RGB patches when RGB duplicates exist.\n\n";
-                for (const auto x : stats.distribution_std_a)
-                {
-                    static double d = 0;
-                    printf("    At or below %3.1f:  %4.1f%%\n", d += .1, 100 * x);
-                }
-                cout << "\nThis is the distribution of standard deviation of b* of the same\n"
-                    "RGB patches when RGB duplicates exist.\n\n";
-                for (const auto x : stats.distribution_std_b)
-                {
-                    static double d = 0;
-                    printf("    At or below %3.1f:  %4.1f%%\n", d += .1, 100 * x);
-                }
+            LabStats stats = process_cgats_measurement_file(args[0]);
+            cgats_utilities::write_cgats_rgblab(stats.rgblab_neutral, args[1]);
+            cgats_utilities::write_cgats_rgblab(stats.rgblab_tint, replace_suffix(args[1], ".txt", "_adj.txt"));
+
+            void print_stats(const LabStats & stats);
+            print_stats(stats);
         }
        else if (args.size() == 1 && is_suffix_icc(args[0]))
         {
             if (is_suffix_icc(args[0]))
-                replace_icc1_A2B1_with_icc2_A2B1(args[0], replace_suffix(args[0],".icm", "_adj.icm"));
+            {
+                cout << "Replacing A2B1 table in " << args[0] << " with " << replace_suffix(args[0], ".icm", "_adj.icm") << "\n\n";
+                replace_icc1_A2B1_with_icc2_A2B1(args[0], replace_suffix(args[0], ".icm", "_adj.icm"));
+            }
+
             else
                 usage();
         }
@@ -158,3 +129,42 @@ int main(int argc, char** argv)
 }
 
 
+void print_stats(const LabStats& stats)
+{
+    printf("White Point L*a*b*:%6.2f %5.2f %5.2f\n"
+        "Black Point L*a*b*:%6.2f %5.2f %5.2f\n"
+        "At RGB130   L*a*b*:%6.2f %5.2f %5.2f\n\n",
+        stats.white_point[0], stats.white_point[1], stats.white_point[2],
+        stats.black_point[0], stats.black_point[1], stats.black_point[2],
+        stats.lab_rgb130[0], stats.lab_rgb130[1], stats.lab_rgb130[2]);
+    printf("      ---Patch deltaE2000 variations---\n"
+        "These are deltaE2000 variations from the averages of RGB patches\n"
+        "comparing patch values with those of adjacent patches either\n"
+        "5 RGB steps or 15 RGB steps away.  Also shown are the deltaE200\n"
+        "variations but with a* and b* ignored.  This is useful to evaluate\n"
+        "Luminance without color shifts from neutral. These variations are much\n"
+        "smaller since a* and b* contribute heavily to deltaE2000 calculations.\n"
+        "Note: L* a* and b* are standard deviations of individual patches, not\n"
+        "dE2000, and are only printed when the charts have duplicated RGB patches\n\n"
+        "Steps (with ab zeroed)       5    15      5z   15z       L*    a*    b*\n");
+
+    for (size_t i = 0; i < stats.percents.size(); i++)
+    {
+        if (stats.repeats >= 2)
+            printf("%3.0f Percent of dE00s <=  %5.2f %5.2f   %5.2f %5.2f    %5.2f %5.2f %5.2f\n", stats.percents[i],
+                stats.distributionp_5[i],
+                stats.distributionp_15[i],
+                stats.distributionp_ab0_5[i],
+                stats.distributionp_ab0_15[i],
+                stats.distributionp_std_L[i],
+                stats.distributionp_std_a[i],
+                stats.distributionp_std_b[i]);
+        else
+            printf("%3.0f Percent of dE00s <=  %5.2f %5.2f   %5.2f %5.2f\n", stats.percents[i],
+                stats.distributionp_5[i],
+                stats.distributionp_15[i],
+                stats.distributionp_ab0_5[i],
+                stats.distributionp_ab0_15[i]);
+    }
+    printf("\n\n");
+}

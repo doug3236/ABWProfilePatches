@@ -28,19 +28,15 @@ using std::vector, std::array;
 using V3=array<double, 3>;
 using V6=array<double, 6>;
 
-//V3 operator+(V3 arg1, V3 arg2);
-//V3 operator-(V3 arg1, V3 arg2);
-//V3 operator*(V3 arg, double s);
-
 class PatchFilter {
 public:
-    PatchFilter(const vector<V3>& vin);
+    PatchFilter(const vector<V3>& vin);     // filters Lab values based on spread size (ND)
     PatchFilter(const vector<V6>& vin);
     vector<double> get_dE00_split(int five_or_15, bool zero_ab); // Must be 5, or 15
     vector<double> get_dE00_vals();     // returns array of dE00 point v surround
     vector<V6> get_rgblab5(bool zero_ab);
 private:
-    const int ND;           // distance between RGB: 1, 5, 15
+    const int ND;           // distance between RGB: 1, 5
     vector<V3> lab;         // Lab (L*a*b*) values of sorted, ave, same, rgb patches
     vector<V3> labf;        // low pass filtered Lab
     vector<V3> labfx;       // low pass filtered Lab excluding center
@@ -49,4 +45,4 @@ private:
 vector<int> histogram(vector<double> v, double step, double last);
 vector<double> distribution(vector<int>, bool accumulate=true);
 
-V3 find_lab_interpolation(const vector<V6> & v, int x);
+V3 find_lab_interpolation(const vector<V6> & v, int x); // returns estimate 

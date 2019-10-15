@@ -19,6 +19,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+// Disable errors for fread and fwrite posix functions
+#define _CRT_SECURE_NO_WARNINGS
 
 #include "cgats.h"
 #include <fstream>
@@ -35,6 +37,8 @@ namespace cgats_utilities {
         vector<string> cgats;
         std::regex word_regex("(\\S+)");
         std::ifstream infile(filename);
+        if (infile.fail())
+            throw std::invalid_argument("File Read Open failed");
         enum State { Main, InDataFormat, InDataSet } state = Main;
         int field_cnt = 0;
         int rgb_start = 0;
@@ -137,10 +141,9 @@ namespace cgats_utilities {
     // Writes minimalist RGB CGATs file
     bool write_cgats_rgb(vector<V3> rgb, string filename)
     {
-        FILE* fp;
-        auto errcode = fopen_s(&fp, filename.c_str(), "wt");
+        FILE* fp = fopen(filename.c_str(), "w");
         if (!fp)
-            return false;
+            throw std::invalid_argument("File Open for WRite Failed.");
         fprintf(fp, "NUMBER_OF_FIELDS 4\n"
             "BEGIN_DATA_FORMAT\n"
             "SampleID	RGB_R	RGB_G	RGB_B\n"
@@ -157,9 +160,9 @@ namespace cgats_utilities {
     // Writes CGATs file containing RGB and LAB fields only - No spectral data
     bool write_cgats_rgblab(vector<V6> rgblab, string filename, string descriptor)
     {
-        FILE* fp = fopen(filename.c_str(), "wt");
+        FILE* fp = fopen(filename.c_str(), "w");
         if (!fp)
-            return false;
+            throw std::invalid_argument("File Open for WRite Failed.");
         fprintf(fp,
             "CGATS.17\n"
             "NUMBER_OF_FIELDS 7\n"

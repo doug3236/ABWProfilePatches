@@ -29,6 +29,7 @@ using namespace color_conversions;
 static inline V3 operator+(V3 arg1, V3 arg2) { return V3{ arg1[0] + arg2[0], arg1[1] + arg2[1], arg1[2] + arg2[2] }; }
 static inline V3 operator-(V3 arg1, V3 arg2) { return V3{ arg1[0] - arg2[0], arg1[1] - arg2[1], arg1[2] - arg2[2] }; }
 static inline V3 operator*(V3 arg, double s) { return V3{ s * arg[0], s * arg[1], s * arg[2] }; }
+static inline V3 operator*(double s, V3 arg) { return V3{ s * arg[0], s * arg[1], s * arg[2] }; }
 
 static double mult_vec(const vector<double>& v, const vector<double>& f, int loc)
 {
@@ -97,12 +98,18 @@ static vector<V3> smooth(const vector<V3>& v3, int n, bool xcenter)
 }
 
 
+// Test constructor to check filtering
 PatchFilter::PatchFilter(const vector<V3>& vin) :
     ND{ 255 / (int)(vin.size() - 1) }, lab{vin}
 {
     labf = smooth(lab, ND > 1 ? 3 : 9, false);
     labfx = smooth(lab, ND > 1 ? 3 : 9, true);
 }
+
+// Populate averages of Lab values for step sizes of either 1 or 5
+// lab: average Lab of all same RGB samples
+// labf: Smoothed (low pass filter) of lab;
+// labx: Smoothed (low pass filter) of lab but excluding sample
 PatchFilter::PatchFilter(const vector<V6>& vin) :
     ND{ 255 / (int)(vin.size() - 1) }
 {
@@ -112,7 +119,8 @@ PatchFilter::PatchFilter(const vector<V6>& vin) :
     labfx = smooth(lab, ND > 1 ? 3 : 9, true);
 }
 
-
+// Operates on potentially averaged values. Returns dE00 of sample vs. smoothed excluding sample
+// Useful for evaluating printer smoothness
 vector<double> PatchFilter::get_dE00_vals()
 {
     vector<double> ret;
@@ -121,6 +129,7 @@ vector<double> PatchFilter::get_dE00_vals()
     return ret;
 }
 
+// Returns dE00 of Lab for sample v ave(sample-spread, sample+spread)  w option to zero a* and b*
 vector<double> PatchFilter::get_dE00_split(int spread, bool zero_ab)  // spread must be 5 or 15
 {
     auto labfq = labf;
@@ -185,12 +194,13 @@ vector<double> distribution(vector<int>v, bool accumulate)
 }
 
 
-// Interpolate to RGB 0,51,102,...255
+// Interpolate to specific neutral RGB element and return Lab value
+// v is RGBLAB vector of (3 for RGB, 3 for Lab)
 V3 find_lab_interpolation(const vector<V6>& v, int x)
 {
     V3 ret;
     if (x == 0)
-        ret= *((V3*)&v[0] + 1);
+        ret= *((V3*)&v[0] + 1);     // hack to get Lab component of V6
     else
     {
         auto low = std::find_if(v.begin(), v.end(), [x](V6 arg) {return arg[0] >= x; }) - 1;

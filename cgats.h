@@ -30,8 +30,9 @@ SOFTWARE.
 #include <iostream>
 #include <regex>
 #include <tuple>
-#include "statistics.h"
+#include <cassert>
 
+#include "statistics.h"
 
 using std::vector;
 using std::string;
@@ -39,6 +40,7 @@ using std::pair;
 using std::array;
 
 namespace cgats_utilities {
+
     using V3=array<double, 3>;  // typically used to hold RGB, LAB or XYZ values
     using V6=array<double, 6>;  // typically used to hold RGBLAB value sets
 

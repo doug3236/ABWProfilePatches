@@ -104,7 +104,7 @@ vector<double> smooth(const vector<double>& v, size_t n)
 }
 
 
-LabStats make_RGBLAB_CGATS_for_ABW(const string& filename, const string& filenameout)
+LabStats process_cgats_measurement_file(const string& filename)
 {
     LabStats ret{};
     vector<DuplicateStats> rgb_lab2 = remove_duplicates(read_cgats_rgblab(filename));      // sort, average, and remove duplicates
@@ -122,20 +122,37 @@ LabStats make_RGBLAB_CGATS_for_ABW(const string& filename, const string& filenam
         rgb_labz.push_back(x.rgb_lab);
     vector <V6> rgb_lab = rgb_labz;
     vector<V6> rgb_labs;
+    auto pb = *rgb_lab.begin();  ret.black_point = V3{ pb[3], pb[4], pb[5] };
+    auto pw = *(rgb_lab.end()-1);  ret.white_point = V3{ pw[3], pw[4], pw[5] };
+    ret.lab_rgb130 = V3{ rgb_lab[26][3], rgb_lab[26][4], rgb_lab[26][5] };
+    for (size_t i = 0; i < rgb_lab.size(); i++)
+    {
+        ret.lab_average[0] += rgb_lab[i][3] / rgb_lab.size();
+        ret.lab_average[1] += rgb_lab[i][4] / rgb_lab.size();
+        ret.lab_average[2] += rgb_lab[i][5] / rgb_lab.size();
+    }
 
     PatchFilter pf(rgb_lab);
-    auto xout = make_rgb_synth(pf, false);
-    write_cgats_rgblab(xout, filenameout);
-    xout = make_rgb_synth(pf, true);
-    write_cgats_rgblab(xout, replace_suffix(filenameout, ".txt", "_adj.txt"));
+    ret.rgblab_neutral = make_rgb_synth(pf, false);
+    ret.rgblab_tint = make_rgb_synth(pf, true);
 
-    ret.distribution_5 = distribution(histogram(pf.get_dE00_split(5, false), .1, 10.0));
-    ret.distribution_15 = distribution(histogram(pf.get_dE00_split(15, false), .1, 10.0));
-    ret.distribution_ab0_5 = distribution(histogram(pf.get_dE00_split(5, true), .1, 10.0));
-    ret.distribution_ab0_15 = distribution(histogram(pf.get_dE00_split(15, true), .1, 10.0));
+    auto fill_percents = [&ret](vector<double> dE, auto& percent) {
+        vector<double> result(ret.percents.size());
+        sort(dE.begin(), dE.end());
+        for (size_t i = 0; i < ret.percents.size(); i++) {
+            auto loc = (int)((.01 * dE.size() * ret.percents[i]) + .5) - 1;
+            result[i] = dE[loc];
+        }
+        return result;
+    };
+    ret.distributionp_5 = fill_percents(pf.get_dE00_split(5, false), ret.percents);
+    ret.distributionp_15 = fill_percents(pf.get_dE00_split(15, false), ret.percents);
+    ret.distributionp_ab0_5 = fill_percents(pf.get_dE00_split(5, true), ret.percents);
+    ret.distributionp_ab0_15 = fill_percents(pf.get_dE00_split(15, true), ret.percents);
 
     // multiple samples on each patch ?
     bool multiple = std::all_of(rgb_lab2.begin(), rgb_lab2.end(), [](DuplicateStats& x) {return x.lab[0].n() >= 2; });
+    ret.repeats = rgb_lab2[0].lab[0].n();
     if (multiple)
     {
         vector<double> std_L, std_a, std_b;
@@ -145,9 +162,9 @@ LabStats make_RGBLAB_CGATS_for_ABW(const string& filename, const string& filenam
             std_a.push_back(x.lab[1].std());
             std_b.push_back(x.lab[2].std());
         }
-        ret.distribution_std_L = distribution(histogram(std_L, .1, 10.0));
-        ret.distribution_std_a = distribution(histogram(std_a, .1, 10.0));
-        ret.distribution_std_b = distribution(histogram(std_b, .1, 10.0));
+        ret.distributionp_std_L = fill_percents(std_L, ret.percents);
+        ret.distributionp_std_a = fill_percents(std_a, ret.percents);
+        ret.distributionp_std_b = fill_percents(std_b, ret.percents);
     }
     return ret;
 }
@@ -167,18 +184,20 @@ void make_RGB_for_ABW(const string& filename, int count, int randomize_and_repea
     {
         std::shuffle(neut.begin(), neut.end(), std::mt19937());
         write_cgats_rgb(neut, "Repeat_" + std::to_string(randomize_and_repeat) + "x_" + filename);
+        cout << "Creating " << "Repeat_" + std::to_string(randomize_and_repeat) + "x_" + filename << '\n';
     }
     else
     {
         write_cgats_rgb(neut, filename);
+        cout << "Creating " << filename << '\n';
     }
 }
 
 
 vector<V6> make_rgb_synth(PatchFilter& pf, bool color)
 {
-    auto dE = pf.get_dE00_split(5, false);
-    auto dEz = pf.get_dE00_split(5, true);
+    //auto dE = pf.get_dE00_split(5, false);
+    //auto dEz = pf.get_dE00_split(5, true);
     auto rgblab_bw = pf.get_rgblab5(!color);
     auto rgblab = rgblab_bw;
     int N = 6;
@@ -261,6 +280,8 @@ WPandA2B1 get_WP_and_A2B1_info(const char* pc)
     auto tags = get_tags(pc);
     auto a2b1 = tags.at("A2B1");
     auto wtpt = tags.at("wtpt");
+    //auto desc = tags.at("desc");
+
     ret.atob1_offset = a2b1.offset;
     ret.atob1_size = a2b1.size;
     ret.wp_offset = wtpt.offset;
