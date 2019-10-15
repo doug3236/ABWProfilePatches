@@ -24,7 +24,6 @@ SOFTWARE.
 #include <fstream>
 #include <utility>
 #include "statistics.h"
-#include "utilities.h"
 
 #pragma warning(disable : 4996)
 
