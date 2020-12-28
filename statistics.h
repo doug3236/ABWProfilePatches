@@ -1,5 +1,5 @@
 /*
-Copyright (c) <2019> <doug gray>
+Copyright (c) <2020> <doug gray>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -76,12 +76,12 @@ inline float Statistics::ave()
 
 inline float Statistics::stdp()
 {
-    return (float)sqrt((double)(sum2/scount - (sum/scount)*(sum/scount)));
+    return (float)sqrt((double)abs(sum2/scount - (sum/scount)*(sum/scount)));
 }
 
 inline float Statistics::std()
 {
-	return (float)sqrt((double)((sum2 - sum*(sum/scount))/(scount-1)));
+	return (float)sqrt((double)abs((sum2 - sum*(sum/scount))/(scount-1)));
 }
 
 inline float Statistics::min()

@@ -1,5 +1,5 @@
 /*
-Copyright (c) <2019> <doug gray>
+Copyright (c) <2020> <doug gray>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -52,7 +52,6 @@ struct LabStats {
     V3 white_point;
     V3 black_point;
     V3 lab_average;
-    V3 lab_rgb130;
     int repeats;
 };
 
@@ -62,5 +61,8 @@ void make_RGB_for_ABW(const string& filename, int count, int randomize_and_repea
 vector<V6> make_rgb_synth(PatchFilter& pf, bool color = false);
 void replace_icc1_A2B1_with_icc2_A2B1(string iccpath1, string iccpath2);
 string replace_suffix(string name, string suffix, string replacement);
-bool is_suffix_icc(string fname);
+bool is_suffix_icm(string fname);
 bool is_suffix_txt(string fname);
+string remove_suffix(string fname);
+void print_stats(const LabStats& stats);
+void print_argyll_batch_command_file(const char* batch_file_name, const char* pc);

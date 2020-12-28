@@ -1,5 +1,5 @@
 /*
-Copyright (c) <2019> <doug gray>
+Copyright (c) <2020> <doug gray>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -276,8 +276,8 @@ namespace color_conversions {
 
     void test() {	// Test sRGB to LAB
         vector<V3> test = { { 255.,255.,255. },{ 10.,10.,20. } };
-        auto xxx = color_conversions::sRGB_to_Lab(test);
-        vector<double> zz{ L_to_sG(5.0),L_to_sG(50) };
+        auto xxx = color_conversions::sRGB_to_Lab(test);  //2.9586, 1.3534, -4.9638
+        vector<double> zz{ L_to_sG(5.0),L_to_sG(50) };  // L* with a=b=0) to sRGB vals 
     }
 }
 

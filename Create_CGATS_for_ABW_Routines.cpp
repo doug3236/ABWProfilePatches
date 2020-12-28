@@ -1,5 +1,5 @@
 /*
-Copyright (c) <2019> <doug gray>
+Copyright (c) <2020> <doug gray>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -44,11 +44,68 @@ SOFTWARE.
 using std::string;
 using std::vector;
 using std::array;
-using std::cout;
 using std::pair;
+using std::cout;
 
 using namespace color_conversions;
 using namespace cgats_utilities;
+
+template<typename T, int N>
+std::array<T, N> operator+(const std::array<T, N>& a, const std::array<T, N>& b)
+{
+    std::array<T, N> ret;
+    for (size_t i = 0; i < N; i++)
+        ret[i] = a[i] + b[i];
+    return ret;
+}
+
+template<typename T, int N>
+std::array<T, N> operator-(const std::array<T, N>& a, const std::array<T, N>& b)
+{
+    std::array<T, N> ret;
+    for (size_t i = 0; i < N; i++)
+        ret[i] = a[i] - b[i];
+    return ret;
+}
+
+template<typename T, int N>
+std::array<T, N> operator*(T a, const std::array<T, N>& b)
+{
+    std::array<T, N> ret;
+    for (size_t i = 0; i < N; i++)
+        ret[i] = a * b[i];
+    return ret;
+}
+
+// only round the first 3 entries (RGB)
+template<typename T, int N>
+std::array<T, N> round(std::array<T, N> a)
+{
+    for (size_t i = 0; i < 3; i++)
+        a[i] = T(int(a[i] + .5));
+    return a;
+}
+
+
+void print_argyll_batch_command_file(const char* batch_file_name, const char* pc)
+{
+    FILE* fp = fopen(batch_file_name, "wt");
+    fprintf(fp,
+        "set ARGYLL_CREATE_WRONG_VON_KRIES_OUTPUT_CLASS_REL_WP=1\n"
+        "txt2ti3 %s.txt %s\n"
+        "colprof -r .1 -qh -D %s.icm -O %s.icm %s\n"
+        "txt2ti3 %s_adj.txt %s_adj\n"
+        "colprof -r .1 -qh -D %s_adj.icm -O %s_adj.icm %s_adj\n"
+        "erase %s.ti3\n"
+        "erase %s_adj.ti3\n"
+        "erase %s.txt\n"
+        "erase %s_adj.txt\n"
+        "ABWProfileMaker %s.icm\n"
+        "erase %s_adj.icm\n"
+        "rem Install %s.icm in \"C:\\Windows\\System32\\spool\\drivers\\color\"\n"
+        , pc, pc, pc, pc, pc, pc, pc, pc, pc, pc, pc, pc, pc, pc, pc, pc, pc);
+    fclose(fp);
+}
 
 std::string replace_suffix(std::string name, string suffix, std::string replacement)
 {
@@ -64,8 +121,8 @@ double mult_vec(const vector<double>& v, const vector<double>& f, size_t loc)
 {
     assert(loc > f.size() / 2 && loc < v.size() - f.size() / 2);
     double s = 0;
-    for (int i = 0; i < f.size(); i++)
-        s += f[i] * v[i + f.size() / 2];
+    for (int i = 0; i < int(f.size()); i++)
+        s += f[i] * v[i + int(f.size()) / 2];
     return s;
 }
 vector<double> convolve(vector<double> v1, vector<double> v2)
@@ -80,7 +137,7 @@ vector<double> make_lowpass(size_t n)
 {
     vector<double> ret{ 1 };
     vector<double> f1{ 1, 1 };
-    for (int i = 1; i < n; i++)
+    for (size_t i = 1; i < n; i++)
         ret = convolve(ret, f1);
     auto s = std::accumulate(ret.begin(), ret.end(), 0.0);
     std::transform(ret.begin(), ret.end(), ret.begin(), [s](double x) {return x / s; });
@@ -107,24 +164,43 @@ vector<double> smooth(const vector<double>& v, size_t n)
 LabStats process_cgats_measurement_file(const string& filename)
 {
     LabStats ret{};
-    vector<DuplicateStats> rgb_lab2 = remove_duplicates(read_cgats_rgblab(filename));      // sort, average, and remove duplicates
-    {   // Check that the patch file has properly constructed neutrals
-        auto n = rgb_lab2.size();
-        if (n != 52 && n != 18 && n != 256)
-            throw std::invalid_argument("Patch file must be 18, 52, or 256 in size");
-        for (const auto& x : rgb_lab2)
-            if (x.rgb_lab[0] != x.rgb_lab[1] || x.rgb_lab[0] != x.rgb_lab[2] || fmod(x.rgb_lab[0],255/(n-1)) != 0.0)
-                throw std::invalid_argument("Patch file must be evenly spaced neutrals");
-
-    }
-    vector<V6> rgb_labz;
+    vector<V6> valsN;
+    vector<V6> vals = read_cgats_rgblab(filename);
+    std::copy_if(vals.begin(), vals.end(), std::back_inserter(valsN), [](auto arg) {
+        return arg[0] == arg[1] && arg[0] == arg[2];
+        });
+    vector<DuplicateStats> rgb_lab2 = remove_duplicates(vals);      // sort, average, and remove duplicates
+    vector<V6> rgb_lab;
     for (auto& x : rgb_lab2)
-        rgb_labz.push_back(x.rgb_lab);
-    vector <V6> rgb_lab = rgb_labz;
-    vector<V6> rgb_labs;
-    auto pb = *rgb_lab.begin();  ret.black_point = V3{ pb[3], pb[4], pb[5] };
-    auto pw = *(rgb_lab.end()-1);  ret.white_point = V3{ pw[3], pw[4], pw[5] };
-    ret.lab_rgb130 = V3{ rgb_lab[26][3], rgb_lab[26][4], rgb_lab[26][5] };
+        rgb_lab.push_back(x.rgb_lab);
+    validate(rgb_lab[0][0] == 0, "Measurements are missing RGB(0,0,0)");
+    validate(rgb_lab[rgb_lab.size()-1][0] == 255, "Measurements are missing RGB(255,255,255)");
+
+    {   // Check that the patch file has properly constructed neutrals
+        auto n = rgb_lab.size();
+        if (n != 52 && n != 256)    // interpolate if not standard size
+        {
+            vector<V6> x;
+            for (size_t i = 0; i < n; i++)
+            {
+                x.push_back(rgb_lab[i]);
+                if (i < n-1 && rgb_lab[i][0] + 1 < rgb_lab[i + 1][0])  // interpolate here
+                {
+                    auto rgb_diff = int(rgb_lab[i + 1][0] - rgb_lab[i][0]);
+                    auto diff = (1.0/rgb_diff) * (rgb_lab[i + 1] - rgb_lab[i]);
+                    for (int ii = 1; ii < rgb_diff; ii++)
+                        x.push_back(round(rgb_lab[i] + double(ii)*diff));
+                }
+            }
+            rgb_lab = x;
+        }
+        for (const auto& x : rgb_lab)
+            if (x[0] != x[1] || x[0] != x[2] || fmod(x[0],255/(n-1)) != 0.0)
+                throw std::invalid_argument("Patch file must be evenly spaced neutrals");
+    }
+    
+    auto pb = rgb_lab.front();  ret.black_point = V3{ pb[3], pb[4], pb[5] };
+    auto pw = rgb_lab.back();  ret.white_point = V3{ pw[3], pw[4], pw[5] };
     for (size_t i = 0; i < rgb_lab.size(); i++)
     {
         ret.lab_average[0] += rgb_lab[i][3] / rgb_lab.size();
@@ -214,7 +290,7 @@ vector<V6> make_rgb_synth(PatchFilter& pf, bool color)
     for (int i = 0; i < N; i++)
         for (int ii = 0; ii < N; ii++)
             for (int iii = 0; iii < N; iii++)
-                if (i != ii || i != iii)            // Don't add in neutrals from syntheized colors
+                if (i != ii || i != iii)            // Don't add in neutrals from synthesized colors
                 {
                     V3 rgb{ i * 51., ii * 51., iii * 51. };
                     V3 rgbp{ sRGB_Steps[i], sRGB_Steps[ii], sRGB_Steps[iii] };		// synthesize sRGB colors
@@ -235,6 +311,45 @@ vector<V6> make_rgb_synth(PatchFilter& pf, bool color)
 
     return rgblab;
 }
+
+void print_stats(const LabStats& stats)
+{
+    printf("White Point L*a*b*:%6.2f %5.2f %5.2f\n"
+        "Black Point L*a*b*:%6.2f %5.2f %5.2f\n\n",
+        stats.white_point[0], stats.white_point[1], stats.white_point[2],
+        stats.black_point[0], stats.black_point[1], stats.black_point[2]);
+    printf("      ---Patch deltaE2000 variations---\n"
+        "These are deltaE2000 variations from the averages of RGB patches\n"
+        "comparing patch values with those of adjacent patches either\n"
+        "5 RGB steps or 15 RGB steps away.  Also shown are the deltaE200\n"
+        "variations but with a* and b* ignored.  This is useful to evaluate\n"
+        "Luminance without color shifts from neutral. These variations are much\n"
+        "smaller since a* and b* contribute heavily to deltaE2000 calculations.\n"
+        "Note: L* a* and b* are standard deviations of individual patches, not\n"
+        "dE2000, and are only printed when the charts have duplicated RGB patches\n\n"
+        "Steps (with ab zeroed)       5    15      5z   15z       L*    a*    b*\n");
+
+    for (size_t i = 0; i < stats.percents.size(); i++)
+    {
+        if (stats.repeats >= 2)
+            printf("%3.0f Percent of dE00s <=  %5.2f %5.2f   %5.2f %5.2f    %5.2f %5.2f %5.2f\n", stats.percents[i],
+                stats.distributionp_5[i],
+                stats.distributionp_15[i],
+                stats.distributionp_ab0_5[i],
+                stats.distributionp_ab0_15[i],
+                stats.distributionp_std_L[i],
+                stats.distributionp_std_a[i],
+                stats.distributionp_std_b[i]);
+        else
+            printf("%3.0f Percent of dE00s <=  %5.2f %5.2f   %5.2f %5.2f\n", stats.percents[i],
+                stats.distributionp_5[i],
+                stats.distributionp_15[i],
+                stats.distributionp_ab0_5[i],
+                stats.distributionp_ab0_15[i]);
+    }
+    printf("\n\n");
+}
+
 
 uint32_t endian32(const char* pc)
 {
@@ -328,12 +443,22 @@ void replace_icc1_A2B1_with_icc2_A2B1(string iccpath1, string iccpath2)
     write_binary_file(iccpath1, buf1);
 }
 
-bool is_suffix_icc(std::string fname)
+bool is_suffix_icm(std::string fname)
 {
-    return fname.substr(fname.size() - 4, 4) == ".icm" || fname.substr(fname.size() - 4, 4) == ".icc";
+    if (fname.size() < 4)
+        return false;
+    return fname.substr(fname.size() - 4, 4) == ".icm";
 }
 
 bool is_suffix_txt(std::string fname)
 {
+    if (fname.size() < 4)
+        return false;
     return fname.substr(fname.size() - 4, 4) == ".txt";
+}
+
+string remove_suffix(std::string fname)
+{
+    auto dot_loc=fname.find_last_of('.');
+    return fname.substr(0, dot_loc);
 }

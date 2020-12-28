@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30320.27
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ABWProfileMaker", "ABWProfileMaker.vcxproj", "{BB2BA063-9614-460E-B004-5EC15652E8D7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug Fixup Profile|x64 = Debug Fixup Profile|x64
+		Debug Fixup Profile|x86 = Debug Fixup Profile|x86
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BB2BA063-9614-460E-B004-5EC15652E8D7}.Debug Fixup Profile|x64.ActiveCfg = Debug Fixup Profile|x64
+		{BB2BA063-9614-460E-B004-5EC15652E8D7}.Debug Fixup Profile|x64.Build.0 = Debug Fixup Profile|x64
+		{BB2BA063-9614-460E-B004-5EC15652E8D7}.Debug Fixup Profile|x86.ActiveCfg = Debug Fixup Profile|Win32
+		{BB2BA063-9614-460E-B004-5EC15652E8D7}.Debug Fixup Profile|x86.Build.0 = Debug Fixup Profile|Win32
+		{BB2BA063-9614-460E-B004-5EC15652E8D7}.Debug|x64.ActiveCfg = Debug|x64
+		{BB2BA063-9614-460E-B004-5EC15652E8D7}.Debug|x64.Build.0 = Debug|x64
+		{BB2BA063-9614-460E-B004-5EC15652E8D7}.Debug|x86.ActiveCfg = Debug|Win32
+		{BB2BA063-9614-460E-B004-5EC15652E8D7}.Debug|x86.Build.0 = Debug|Win32
+		{BB2BA063-9614-460E-B004-5EC15652E8D7}.Release|x64.ActiveCfg = Release|x64
+		{BB2BA063-9614-460E-B004-5EC15652E8D7}.Release|x64.Build.0 = Release|x64
+		{BB2BA063-9614-460E-B004-5EC15652E8D7}.Release|x86.ActiveCfg = Release|Win32
+		{BB2BA063-9614-460E-B004-5EC15652E8D7}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6ACDB1B1-096F-4DEB-9326-BFA9D3BDBA63}
+	EndGlobalSection
+EndGlobal

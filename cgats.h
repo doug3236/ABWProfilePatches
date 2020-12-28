@@ -1,5 +1,5 @@
 /*
-Copyright (c) <2019> <doug gray>
+Copyright (c) <2020> <doug gray>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,6 @@ SOFTWARE.
 #include <array>
 #include <fstream>
 #include <iostream>
-#include <regex>
 #include <tuple>
 #include <cassert>
 
@@ -40,23 +39,36 @@ using std::pair;
 using std::array;
 
 namespace cgats_utilities {
+    // gathers CGATs file info
+    struct Cgats_data {
+        string filename;
+        vector<vector<string>> lines;   // tokenized lines in CGATs file
+        vector<string> fields;          // tokenized list of fields
+        vector<vector<string>>::iterator data_ptr; // pointer to start of value lines
+        int num_of_fields;  // num_of_fields==fields.size()==data_ptr[0].size()
+        int num_of_sets;    // data_ptr[0] to data_ptr[num_of_sets-1]
+        ptrdiff_t rgb_loc;  // location of RGB_R in fields
+        ptrdiff_t lab_loc;  // location of LAB_L in fields
+    };
+    Cgats_data populate_cgats(const string& filename);
+    void validate(bool b, string message);
 
     using V3=array<double, 3>;  // typically used to hold RGB, LAB or XYZ values
     using V6=array<double, 6>;  // typically used to hold RGBLAB value sets
 
-    vector<V6> read_cgats_rgblab(string filename, bool include_lab = true);
-    vector<V3> read_cgats_rgb(string filename);
+    vector<V6> read_cgats_rgblab(const string& filename, bool include_lab = true);
+    vector<V3> read_cgats_rgb(const string& filename);
 
-    bool write_cgats_rgb(vector<V3> rgb, string filename);
-
-    bool write_cgats_rgblab(vector<V6> rgblab, string filename, string descriptor = "RGBLAB");
+    bool write_cgats_rgb(const vector<V3>& rgb, const string& filename);  // write rgb patch file
+    bool write_cgats_lab(const vector<V3>& lab, const string& filename);  // 288 lab file for scanner reference creation
+    bool write_cgats_rgblab(const vector<V6>& rgblab, const string& filename, string descriptor = "RGBLAB");
     pair<vector<V3>, vector<V3>> separate_rgb_lab(const vector<V6>& rgblab);
     vector<V6> combine_rgb_lab(const vector<V3>& rgb, const vector<V3>& lab);
 
     // predicate for sort by RGB values
     bool less_than(const V6& arg1, const V6& arg2);
     // Overrides operator== for array<> to look at only the first 3 values
-    bool operator==(V6 arg1, V6 arg2);
+    bool operator==(const V6& arg1, const V6& arg2);
     
     // used to collect statistics when combining the same RGB patch values
     struct DuplicateStats {

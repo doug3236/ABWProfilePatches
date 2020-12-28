@@ -1,5 +1,5 @@
 /*
-Copyright (c) <2019> <doug gray>
+Copyright (c) <2020> <doug gray>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,26 +32,27 @@ void usage()
 {
     const char* message = {
         "     ---------- Step 1 -----------\n"
-        "ABWProfilePatches [S|L] [n]\n"
+        "ABWProfilePatches S|L [n]\n"
         "  Creates RGB CGATS file Where S generates 52 RGB patches 0:5:255,\n"
         "  L generates 256 RGB patches 0:1:255 and the optional [n] is number\n"
         "  of pattern repeats\n\n"
 
         "     ---------- Step 2 -----------\n"
-        "ABWProfilePatches MeasurementFilename [ProfileName]\n"
-        "  MeasurementFilename and ProfileName\n"
-        "  Reads a ABW CGATS measurement file of neutral patches and optionally creates\n"
+        "ABWProfilePatches MeasurementFilename.txt ProfileName\n"
+        "  If only MeasurementFilename is given, just display statistics, otherwise\n"
+        "  Reads a ABW CGATS measurement file of neutral patches and creates\n"
         "  synthetic RGBLAB CGATs files named \"ProfileName.txt\" and \"ProfileName_adj.txt\"\n"
-        "  from which Argyll or I1Profiler can createICC profiles.\n"
-        "  Then make profiles from these two files.\n"
-        "  If only MeasurementFilename is given, just display statistics\n\n"
+        "  from which one creates ICC profiles. Then make profiles from these two files\n"
+        "  using an automatically created batch file \"make_argyll_abw_profile.bat\"\n"
+        "  if you have Argyll's software installed or manually with a program like I1Profiler\n\n"
 
         "     ---------- Step 3 -----------\n"
         "ABWProfilePatches Profile\n"
         "  Where profile is the name of base profile with a suffix of \".icm\"\n"
         "  There must be two profiles from the previous step. The second profile has the\n"
         "  same name with \"_adj\" added. The A2B1 tables inside the Profile_adj.icm\n"
-        "  will replace the A2B1 table inside Profile.icm.\n\n"
+        "  will replace the A2B1 table inside Profile.icm. Discard the \"_adj\" profile.\n"
+        "  and install the first.\n\n"
         "" };
     std::cout << message;
     exit(0);
@@ -60,7 +61,7 @@ void usage()
 int main(int argc, char** argv)
 {
     vector<string> args;
-    for (size_t i = 1; i < argc; i++)       // copy arguments into string vector and make suffixes lower case
+    for (int i = 1; i < argc; i++)       // copy arguments into string vector and make suffixes lower case
     {
         string data = argv[i];
         auto p = find(data.begin(), data.end(), '.');
@@ -69,7 +70,7 @@ int main(int argc, char** argv)
         args.push_back(data);
     }
 
-    cout << "-----ABWProfileMaker V1.2-----\n";
+    cout << "-----ABWProfileMaker V2.0-----\n";
     if (argc == 1)
         usage();
     try {
@@ -85,32 +86,41 @@ int main(int argc, char** argv)
             if (args.size() == 2) try { rept = std::stoi(args[1]); } catch (std::exception e) {}
             make_RGB_for_ABW("Neutrals_256.txt", 256, rept);
         }
+        // print CGATs measurement statistics
         else if (args.size() == 1 && is_suffix_txt(args[0]))
         {
             cout << "Statistics for: " << args[0] << "\n\n";
             LabStats stats = process_cgats_measurement_file(args[0]);
-            void print_stats(const LabStats & stats);
             print_stats(stats);
         }
-        else if (args.size()==2 && is_suffix_txt(args[0]) && is_suffix_txt(args[1]))
+        // print CGATs measurement statistics and generate pseudo CGATs files for B&W
+        // first file simulates printing tracking L* but zeroing a* and b* for accurate BtoA table
+        // second file simulates color by providing accurate L*, a*, and b*
+        // A useable ABW profile with soft proofing requires generating ICC profiles and replacing
+        // the color info containing AtoB table.
+        else if (args.size() == 2 && is_suffix_txt(args[0]))
         {
+            string second_arg = remove_suffix(args[1]);
             cout << "Creating synthetic patch sets\n  From: " << args[0] << "\n"
-            "  To:   " << args[1] << "\nas well as an _adj file.\n\n"
-            "Use these two CGATs files to create ICC profiles.\n\n\n";
+                "  To:   " << second_arg + ".txt" << "\n"
+                "  And:  " << second_arg + "_adj.txt" << "\n"
+                "And a batch file to make Argyll profiles: " << "make_argyll_abw_profile.bat" << "\n\n";
 
             LabStats stats = process_cgats_measurement_file(args[0]);
-            cgats_utilities::write_cgats_rgblab(stats.rgblab_neutral, args[1]);
-            cgats_utilities::write_cgats_rgblab(stats.rgblab_tint, replace_suffix(args[1], ".txt", "_adj.txt"));
-
-            void print_stats(const LabStats & stats);
+            cgats_utilities::write_cgats_rgblab(stats.rgblab_neutral, second_arg + ".txt");
+            cgats_utilities::write_cgats_rgblab(stats.rgblab_tint, second_arg + "_adj.txt");
             print_stats(stats);
+
+            // Make a Windows batch command file to automate Argyll
+            print_argyll_batch_command_file("make_argyll_abw_profile.bat", second_arg.data());
         }
-       else if (args.size() == 1 && is_suffix_icc(args[0]))
+        else if (args.size() == 1 && is_suffix_icm(args[0]))
         {
-            if (is_suffix_icc(args[0]))
+            if (is_suffix_icm(args[0]))
             {
-                cout << "Replacing A2B1 table in " << args[0] << " with " << replace_suffix(args[0], ".icm", "_adj.icm") << "\n\n";
                 replace_icc1_A2B1_with_icc2_A2B1(args[0], replace_suffix(args[0], ".icm", "_adj.icm"));
+                cout << "Replaced A2B1 table in " << args[0] << " with " << replace_suffix(args[0], ".icm", "_adj.icm")
+                    << "\n" << args[0] << " may now be used to print and softproof ABW.\n\n";
             }
 
             else
@@ -129,42 +139,3 @@ int main(int argc, char** argv)
 }
 
 
-void print_stats(const LabStats& stats)
-{
-    printf("White Point L*a*b*:%6.2f %5.2f %5.2f\n"
-        "Black Point L*a*b*:%6.2f %5.2f %5.2f\n"
-        "At RGB130   L*a*b*:%6.2f %5.2f %5.2f\n\n",
-        stats.white_point[0], stats.white_point[1], stats.white_point[2],
-        stats.black_point[0], stats.black_point[1], stats.black_point[2],
-        stats.lab_rgb130[0], stats.lab_rgb130[1], stats.lab_rgb130[2]);
-    printf("      ---Patch deltaE2000 variations---\n"
-        "These are deltaE2000 variations from the averages of RGB patches\n"
-        "comparing patch values with those of adjacent patches either\n"
-        "5 RGB steps or 15 RGB steps away.  Also shown are the deltaE200\n"
-        "variations but with a* and b* ignored.  This is useful to evaluate\n"
-        "Luminance without color shifts from neutral. These variations are much\n"
-        "smaller since a* and b* contribute heavily to deltaE2000 calculations.\n"
-        "Note: L* a* and b* are standard deviations of individual patches, not\n"
-        "dE2000, and are only printed when the charts have duplicated RGB patches\n\n"
-        "Steps (with ab zeroed)       5    15      5z   15z       L*    a*    b*\n");
-
-    for (size_t i = 0; i < stats.percents.size(); i++)
-    {
-        if (stats.repeats >= 2)
-            printf("%3.0f Percent of dE00s <=  %5.2f %5.2f   %5.2f %5.2f    %5.2f %5.2f %5.2f\n", stats.percents[i],
-                stats.distributionp_5[i],
-                stats.distributionp_15[i],
-                stats.distributionp_ab0_5[i],
-                stats.distributionp_ab0_15[i],
-                stats.distributionp_std_L[i],
-                stats.distributionp_std_a[i],
-                stats.distributionp_std_b[i]);
-        else
-            printf("%3.0f Percent of dE00s <=  %5.2f %5.2f   %5.2f %5.2f\n", stats.percents[i],
-                stats.distributionp_5[i],
-                stats.distributionp_15[i],
-                stats.distributionp_ab0_5[i],
-                stats.distributionp_ab0_15[i]);
-    }
-    printf("\n\n");
-}
