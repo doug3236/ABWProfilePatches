@@ -15,7 +15,7 @@ It produces accurate soft proofs including things like the subtle tones when pri
 A big reason to use the printer's ABW mode is that prints are more stable and blacks are printed
 more smoothly. The printer uses only small amounts of CYM inks in black and white mode. One can
 see the measured difference as smaller variations in patch colors in the comparison
-[here](#ABW-v-Printing-B&W-in-Full-Color-Mode).
+[here](#abw-v-printing-black-and-white-in-full-color-mode).
 
 #### Requirements
 Windows x64, 7,8, or 10.
@@ -58,7 +58,7 @@ colorimetric intents using the same process as color printing with "Photoshop Ma
 For printers that don't allow "Photoshop Manages Colors" in B&W mode,
 you must use "Printer Manages Colors" which disables profile selection to
 print the charts. 
-[See "Making a Printer Managed Profile"](#making-a-printer-managed-profile)
+[See "Making a Printer Managed Profile"](#making-a-printer-managed-profile-alternate)
 and their usage is slightly different.
 
 Two kinds of profiles can be made. Some people like to print black and white directly,
@@ -296,7 +296,7 @@ The provided C++17 code is portable and requires no libraries. Just load the
 and link into an executable.
 
 
-### ABW v Printing B&W in Full Color Mode
+### ABW v Printing Black and White in Full Color Mode
 The second step in making the synthesized patch sets has an additional feature. It prints out
 a distribution that shows how much dE20000 variation occurs between steps of 5 and 15.
 This provides information on how smooth the neutral tone transitions are.  Additionally,
