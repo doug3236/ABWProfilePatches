@@ -32,6 +32,8 @@ SOFTWARE.
 using std::vector;
 using std::string;
 
+using V3 = array<double, 3>;  // typically used to hold RGB, LAB or XYZ values
+
 struct LabStats {
     // synthesized RGBLAB values for use in profiling application
     vector<V6> rgblab_neutral;
@@ -53,6 +55,10 @@ struct LabStats {
     V3 black_point;
     V3 lab_average;
     int repeats;
+
+    vector<V3> lab;
+    vector<double> rgb;
+    PatchFilter patch_filter;
 };
 
 LabStats process_cgats_measurement_file(const string& filename);
@@ -64,5 +70,5 @@ string replace_suffix(string name, string suffix, string replacement);
 bool is_suffix_icm(string fname);
 bool is_suffix_txt(string fname);
 string remove_suffix(string fname);
-void print_stats(const LabStats& stats);
+void print_stats(const LabStats& stats, bool extended=false);
 void print_argyll_batch_command_file(const char* batch_file_name, const char* pc);

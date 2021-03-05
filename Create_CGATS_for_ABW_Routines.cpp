@@ -169,7 +169,7 @@ LabStats process_cgats_measurement_file(const string& filename)
     std::copy_if(vals.begin(), vals.end(), std::back_inserter(valsN), [](auto arg) {
         return arg[0] == arg[1] && arg[0] == arg[2];
         });
-    vector<DuplicateStats> rgb_lab2 = remove_duplicates(vals);      // sort, average, and remove duplicates
+    vector<DuplicateStats> rgb_lab2 = remove_duplicates(valsN);      // sort, average, and remove duplicates
     vector<V6> rgb_lab;
     for (auto& x : rgb_lab2)
         rgb_lab.push_back(x.rgb_lab);
@@ -209,6 +209,7 @@ LabStats process_cgats_measurement_file(const string& filename)
     }
 
     PatchFilter pf(rgb_lab);
+    ret.patch_filter = pf;
     ret.rgblab_neutral = make_rgb_synth(pf, false);
     ret.rgblab_tint = make_rgb_synth(pf, true);
 
@@ -272,8 +273,6 @@ void make_RGB_for_ABW(const string& filename, int count, int randomize_and_repea
 
 vector<V6> make_rgb_synth(PatchFilter& pf, bool color)
 {
-    //auto dE = pf.get_dE00_split(5, false);
-    //auto dEz = pf.get_dE00_split(5, true);
     auto rgblab_bw = pf.get_rgblab5(!color);
     auto rgblab = rgblab_bw;
     int N = 6;
@@ -281,7 +280,7 @@ vector<V6> make_rgb_synth(PatchFilter& pf, bool color)
     rgblab.resize(index + N * N * N - N);
 
     V6 sRGB_Steps;
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < N; i++)
     {
         auto lab_est = find_lab_interpolation(rgblab, i * 51);
         sRGB_Steps[i] = L_to_sG(lab_est[0]);		// find rgb B&W value for each L*
@@ -312,42 +311,66 @@ vector<V6> make_rgb_synth(PatchFilter& pf, bool color)
     return rgblab;
 }
 
-void print_stats(const LabStats& stats)
+void print_stats(const LabStats& stats, bool extended)
 {
-    printf("White Point L*a*b*:%6.2f %5.2f %5.2f\n"
-        "Black Point L*a*b*:%6.2f %5.2f %5.2f\n\n",
-        stats.white_point[0], stats.white_point[1], stats.white_point[2],
-        stats.black_point[0], stats.black_point[1], stats.black_point[2]);
-    printf("      ---Patch deltaE2000 variations---\n"
-        "These are deltaE2000 variations from the averages of RGB patches\n"
-        "comparing patch values with those of adjacent patches either\n"
-        "5 RGB steps or 15 RGB steps away.  Also shown are the deltaE200\n"
-        "variations but with a* and b* ignored.  This is useful to evaluate\n"
-        "Luminance without color shifts from neutral. These variations are much\n"
-        "smaller since a* and b* contribute heavily to deltaE2000 calculations.\n"
-        "Note: L* a* and b* are standard deviations of individual patches, not\n"
-        "dE2000, and are only printed when the charts have duplicated RGB patches\n\n"
-        "Steps (with ab zeroed)       5    15      5z   15z       L*    a*    b*\n");
-
-    for (size_t i = 0; i < stats.percents.size(); i++)
+    if (stats.patch_filter.intent == PatchFilter::Intent::RELBPC)
     {
-        if (stats.repeats >= 2)
-            printf("%3.0f Percent of dE00s <=  %5.2f %5.2f   %5.2f %5.2f    %5.2f %5.2f %5.2f\n", stats.percents[i],
-                stats.distributionp_5[i],
-                stats.distributionp_15[i],
-                stats.distributionp_ab0_5[i],
-                stats.distributionp_ab0_15[i],
-                stats.distributionp_std_L[i],
-                stats.distributionp_std_a[i],
-                stats.distributionp_std_b[i]);
-        else
-            printf("%3.0f Percent of dE00s <=  %5.2f %5.2f   %5.2f %5.2f\n", stats.percents[i],
-                stats.distributionp_5[i],
-                stats.distributionp_15[i],
-                stats.distributionp_ab0_5[i],
-                stats.distributionp_ab0_15[i]);
+        printf("White Point L*a*b*:%6.2f %5.2f %5.2f\n"
+            "Black Point L*a*b*:%6.2f %5.2f %5.2f\n\n",
+            stats.white_point[0], stats.white_point[1], stats.white_point[2],
+            stats.black_point[0], stats.black_point[1], stats.black_point[2]);
+        printf("      ---Patch deltaE2000 variations---\n"
+            "These are deltaE2000 variations from the averages of RGB patches\n"
+            "comparing patch values with those of adjacent patches either\n"
+            "5 RGB steps or 15 RGB steps away.  Also shown are the deltaE200\n"
+            "variations but with a* and b* ignored.  This is useful to evaluate\n"
+            "Luminance without color shifts from neutral. These variations are much\n"
+            "smaller since a* and b* contribute heavily to deltaE2000 calculations.\n"
+            "Note: L* a* and b* are standard deviations of individual patches, not\n"
+            "dE2000, and are only printed when the charts have duplicated RGB patches\n\n"
+            "Steps (with ab zeroed)       5    15      5z   15z       L*    a*    b*\n");
+
+        for (size_t i = 0; i < stats.percents.size(); i++)
+        {
+            if (stats.repeats >= 2)
+                printf("%3.0f Percent of dE00s <=  %5.2f %5.2f   %5.2f %5.2f    %5.2f %5.2f %5.2f\n", stats.percents[i],
+                    stats.distributionp_5[i],
+                    stats.distributionp_15[i],
+                    stats.distributionp_ab0_5[i],
+                    stats.distributionp_ab0_15[i],
+                    stats.distributionp_std_L[i],
+                    stats.distributionp_std_a[i],
+                    stats.distributionp_std_b[i]);
+            else
+                printf("%3.0f Percent of dE00s <=  %5.2f %5.2f   %5.2f %5.2f\n", stats.percents[i],
+                    stats.distributionp_5[i],
+                    stats.distributionp_15[i],
+                    stats.distributionp_ab0_5[i],
+                    stats.distributionp_ab0_15[i]);
+        }
+        printf("\n\n");
     }
-    printf("\n\n");
+    if (extended)
+    {
+        string type;
+        if (stats.patch_filter.intent == PatchFilter::Intent::RELBPC)
+            type = "Continuous slope, may be Relative Colorimetric with BPC";
+        else if (stats.patch_filter.intent == PatchFilter::Intent::REL)
+            type = "Relative Colorimetric";
+        else
+            type = "Absolute Colorimetric";
+        printf("%s\nRGB  L*(sRGB)  L*(proj)  L*a*b* (Measured)   Diff\n", type.c_str());
+        for (int i = 0; i < 52; i++)
+        {
+            printf("%3d  %5.1f      %4.1f      %4.1f %4.1f %4.1f     %4.1f\n",
+                i * 5, stats.patch_filter.L_sRGB[i],
+                stats.patch_filter.L_projected[i],
+                stats.patch_filter.lab5[i][0],
+                stats.patch_filter.lab5[i][1],
+                stats.patch_filter.lab5[i][2],
+                stats.patch_filter.lab5[i][0] - stats.patch_filter.L_projected[i]);
+        }
+    }
 }
 
 
@@ -361,6 +384,7 @@ uint32_t endian32(const char* pc)
     return ret;
 }
 
+// location and size of AtoB1 table and WhitePoint
 struct WPandA2B1
 {
     size_t wp_offset;
@@ -369,7 +393,7 @@ struct WPandA2B1
     size_t atob1_size;
 };
 
-
+// ICC tags. see www.color.org
 struct Tags {
     std::string id;
     std::size_t offset;

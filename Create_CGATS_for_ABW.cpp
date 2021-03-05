@@ -39,7 +39,8 @@ void usage()
 
         "     ---------- Step 2 -----------\n"
         "ABWProfilePatches MeasurementFilename.txt ProfileName\n"
-        "  If only MeasurementFilename is given, just display statistics, otherwise\n"
+        "  If only MeasurementFilename is given, just display statistics,\n"
+        "  and extended tracking accuracy, otherwise\n"
         "  Reads a ABW CGATS measurement file of neutral patches and creates\n"
         "  synthetic RGBLAB CGATs files named \"ProfileName.txt\" and \"ProfileName_adj.txt\"\n"
         "  from which one creates ICC profiles. Then make profiles from these two files\n"
@@ -61,16 +62,15 @@ void usage()
 int main(int argc, char** argv)
 {
     vector<string> args;
-    for (int i = 1; i < argc; i++)       // copy arguments into string vector and make suffixes lower case
+    for (int i = 1; i < argc; i++)   // copy args (except arg[0]) into string vector and make suffixes lower case
     {
         string data = argv[i];
-        auto p = find(data.begin(), data.end(), '.');
-        for (; p < data.end(); p++)
+        for (auto p = find(data.begin(), data.end(), '.'); p < data.end(); p++)
             *p = std::tolower(*p);
         args.push_back(data);
     }
 
-    cout << "-----ABWProfileMaker V2.0-----\n";
+    cout << "-----ABWProfileMaker V2.1-----\n";
     if (argc == 1)
         usage();
     try {
@@ -91,7 +91,7 @@ int main(int argc, char** argv)
         {
             cout << "Statistics for: " << args[0] << "\n\n";
             LabStats stats = process_cgats_measurement_file(args[0]);
-            print_stats(stats);
+            print_stats(stats, true);
         }
         // print CGATs measurement statistics and generate pseudo CGATs files for B&W
         // first file simulates printing tracking L* but zeroing a* and b* for accurate BtoA table

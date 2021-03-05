@@ -22,16 +22,11 @@ SOFTWARE.
 
 
 #include <numeric>
-#include "PatchFilter.h"
-#include "color_conversions.h"
 #include <stdexcept>
 #include <algorithm>
+#include "PatchFilter.h"
+#include "color_conversions.h"
 using namespace color_conversions;
-
-static inline V3 operator+(V3 arg1, V3 arg2) { return V3{ arg1[0] + arg2[0], arg1[1] + arg2[1], arg1[2] + arg2[2] }; }
-static inline V3 operator-(V3 arg1, V3 arg2) { return V3{ arg1[0] - arg2[0], arg1[1] - arg2[1], arg1[2] - arg2[2] }; }
-static inline V3 operator*(V3 arg, double s) { return V3{ s * arg[0], s * arg[1], s * arg[2] }; }
-static inline V3 operator*(double s, V3 arg) { return V3{ s * arg[0], s * arg[1], s * arg[2] }; }
 
 static vector<double> convolve(vector<double> v1, vector<double> v2)
 {
@@ -82,6 +77,8 @@ static vector<V3> smooth(const vector<V3>& v3, int n, bool xcenter)
 }
 
 
+
+
 // Populate averages of Lab values for step sizes of either 1 or 5
 // lab: average Lab of all same RGB samples
 // labf: Smoothed (low pass filter) of lab;
@@ -89,10 +86,80 @@ static vector<V3> smooth(const vector<V3>& v3, int n, bool xcenter)
 PatchFilter::PatchFilter(const vector<V6>& vin) :
     ND{ 255 / (int)(vin.size() - 1) }
 {
+    // create L* table for sRGB in steps of 5
+    L_sRGB.resize(52);
+    sRGB_xyz.resize(52);
+    L_projected.resize(52);
+
+    for (int i = 0; i < 52; i++)
+    {
+        V3 rgb = sRGB_to_Lab(V3{ i * 5.,i * 5.,i * 5. });
+        L_sRGB[i] = rgb[0];
+        sRGB_xyz[i] = Lab_to_XYZ(V3{ L_sRGB[i],0,0 });
+    }
+
     for (auto const& x : vin)
         lab.push_back(*((V3*)&x+1));
     labf = smooth(lab, ND > 1 ? 3 : 9, false);
     labfx = smooth(lab, ND > 1 ? 3 : 9, true);
+    if (labf.size() == 52)
+        lab5 = labf;
+    else
+        for (int i = 0; i < 256; i += 5)
+            lab5.push_back(labf[i]);
+
+    const vector<V3> xyz5 = Lab_to_XYZ(lab5);
+    const V3 white = xyz5[51];
+    const V3 black = xyz5[0];
+
+    // Check for BPC which extends black a white to L0:100
+    // and produces small, increasing, changes in L* in the early RGB segments
+    double L = lab5[0][0];
+    if (L < 5 && lab5[1][0] - lab5[0][0] > .3 || 
+        L >= 5 && L < 10 && lab5[2][0] - lab5[0][0] > .3 ||
+        L >= 10 && lab5[3][0] - lab5[0][0] > .3)
+    {
+        // scale Y 0 to 1
+        intent = Intent::RELBPC;
+        for (int i = 0; i < 52; i++)
+        {
+            V3 xyz = black + (white[1] - black[1]) *sRGB_xyz[i];
+            V3 lab = XYZ_to_Lab(xyz);
+            L_projected[i] = lab[0];
+        }
+    }
+    // Rel. Col. mode extends only the paper white point to L:100
+    else if (lab5[51][0] - lab5[50][0] > .3)    // REL
+    {
+        intent = Intent::REL;
+        for (int i = 0; i < 52; i++)
+        {
+            V3 xyz;
+            if (white[1]*sRGB_xyz[i][1] < black[1])
+                xyz = black;
+            else
+                xyz = white[1] * sRGB_xyz[i];
+            V3 lab = XYZ_to_Lab(xyz);
+            L_projected[i] = lab[0];
+        }
+    }
+    // Abs. Col. is actual L* with plateaus below black ink and above paper white
+    else   // ABS
+    {
+        intent = Intent::ABS;
+        for (int i = 0; i < 52; i++)
+        {
+            V3 xyz;
+            if (sRGB_xyz[i][1] < black[1])
+                xyz = black;
+            else if (sRGB_xyz[i][1] > white[1])
+                xyz = white;
+            else
+                xyz = sRGB_xyz[i];
+            V3 lab = XYZ_to_Lab(xyz);
+            L_projected[i] = lab[0];
+        }
+    }
 }
 
 // Operates on potentially averaged values. Returns dE00 of sample vs. smoothed excluding sample

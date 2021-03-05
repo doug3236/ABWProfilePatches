@@ -36,11 +36,13 @@ namespace color_conversions {
     // sRGB to Lab, sRGB scaled 0:255
     V3 sRGB_to_Lab(const V3& rgb);
 
-    //// multiply 3x3 matrix by 3 vector
-    //V3 multM3xV(const array<V3, 3> & matx, const V3& vec);
+    // multiply 3x3 matrix by 3 vector
+    V3 multM3xV(const array<V3, 3> & matx, const V3& vec);
 
     // XYZ to L*a*b*  XYZ Y=0:1
     V3 XYZ_to_Lab(const V3& xyz);
+    V3 Lab_to_XYZ(const V3& lab);
+
 
     // XYZ to sRGB
     V3 XYZ_to_sRGB_Clipped(const V3& xyz);
@@ -53,11 +55,14 @@ namespace color_conversions {
 
     V3 sRGB_to_XYZ(V3 rgb);
 
-
     // vector operations
     // Convert sRGB (0:255) to lab
     vector<V3> sRGB_to_Lab(const vector<V3> rgb);
+    vector<V3> Lab_to_XYZ(const vector<V3>& lab);
+    vector<V3> XYZ_to_Lab(const vector<V3>& XYZ);
 
+    vector<V3> operator+(double arg, const vector<V3> v);
+    vector<V3> operator*(double arg, const vector<V3> v);
 
     double deltaE2000(const V3& lab_std, const V3& lab_sample);
     void test();

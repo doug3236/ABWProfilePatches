@@ -22,13 +22,22 @@ SOFTWARE.
 
 #include <array>
 #include <vector>
+#include <algorithm>
 #include "color_conversions.h"
+#include "PatchFilter.h"
 
 namespace color_conversions {
     // Any double triplet
     using V3 = std::array<double, 3>;
     using std::vector;
     using std::array;
+
+    inline V3 operator+(V3 arg1, V3 arg2) { return V3{ arg1[0] + arg2[0], arg1[1] + arg2[1], arg1[2] + arg2[2] }; }
+    inline V3 operator-(V3 arg1, V3 arg2) { return V3{ arg1[0] - arg2[0], arg1[1] - arg2[1], arg1[2] - arg2[2] }; }
+    inline V3 operator*(V3 arg, double s) { return V3{ s * arg[0], s * arg[1], s * arg[2] }; }
+    inline V3 operator*(double s, V3 arg) { return V3{ s * arg[0], s * arg[1], s * arg[2] }; }
+    inline V3 operator+(V3 arg, double s) { return V3{ s + arg[0], s + arg[1], s + arg[2] }; }
+    inline V3 operator+(double s, V3 arg) { return V3{ s + arg[0], s + arg[1], s + arg[2] }; }
 
     // Conversion matrixes to and from (sRGB only) D50 adaptated XYZ when required
     // RGB spaces must be linear (gamma=1) and scaled 0-1
@@ -82,6 +91,34 @@ namespace color_conversions {
         return 255. * g;
     }
 
+    V3 Lab_to_XYZ(const V3& lab)
+    {
+        double fy = (lab[0] + 16) / 116;
+        double fz = fy - lab[2] / 200;
+        double fx = lab[1] / 500 + fy;
+        double xr = fx * fx * fx > .008856 ? fx * fx * fx : (116 * fx - 16) / 903.3;
+        double yr = lab[0] > .008856 * 903.3 ? pow((lab[0] + 16) / 116, 3) : lab[0] / 903.3;
+        double zr = fz * fz * fz > .008856 ? fz * fz * fz : (116 * fz - 16) / 903.3;
+        return V3{ xr*0.964220, yr, zr*0.825210 };
+    }
+
+
+    vector<V3> Lab_to_XYZ(const vector<V3>& labv)
+    {
+        vector<V3> ret;
+        for (auto& lab : labv)
+            ret.push_back(Lab_to_XYZ(lab));
+        return ret;
+    }
+
+    vector<V3> XYZ_to_Lab(const vector<V3>& XYZv)
+    {
+        vector<V3> ret;
+        for (auto& XYZ : XYZv)
+            ret.push_back(XYZ_to_Lab(XYZ));
+        return ret;
+    }
+
     vector<V3> sRGB_to_Lab(const vector<V3> rgb)
     {
         vector<V3> ret; ret.reserve(rgb.size());
@@ -89,6 +126,19 @@ namespace color_conversions {
             ret.push_back(color_conversions::sRGB_to_Lab(x));
         return ret;
     }
+
+    vector<V3> operator+(double arg, vector<V3> v)
+    {
+        std::transform(v.begin(), v.end(), v.begin(), [arg](V3 a) {return arg + a; });
+        return v;
+    }
+
+    vector<V3> operator*(double arg, vector<V3> v)
+    {
+        std::transform(v.begin(), v.end(), v.begin(), [arg](V3 a) {return arg * a; });
+        return v;
+    }
+
 
     /**************** REENTRANT **************/
     // Get L*a*b* from XYZ

@@ -28,18 +28,33 @@ using std::vector, std::array;
 using V3=array<double, 3>;
 using V6=array<double, 6>;
 
+
+inline V3 operator+(V3 arg1, V3 arg2) { return V3{ arg1[0] + arg2[0], arg1[1] + arg2[1], arg1[2] + arg2[2] }; }
+inline V3 operator-(V3 arg1, V3 arg2) { return V3{ arg1[0] - arg2[0], arg1[1] - arg2[1], arg1[2] - arg2[2] }; }
+inline V3 operator*(V3 arg, double s) { return V3{ s * arg[0], s * arg[1], s * arg[2] }; }
+inline V3 operator*(double s, V3 arg) { return V3{ s * arg[0], s * arg[1], s * arg[2] }; }
+inline V3 operator+(V3 arg, double s) { return V3{ s + arg[0], s + arg[1], s + arg[2] }; }
+inline V3 operator+(double s, V3 arg) { return V3{ s + arg[0], s + arg[1], s + arg[2] }; }
+inline V3 operator/(V3 arg1, V3 arg2) { return V3{ arg1[0] / arg2[0], arg1[1] / arg2[1], arg1[2] / arg2[2] }; }
+inline V3 operator*(V3 arg1, V3 arg2) { return V3{ arg1[0] * arg2[0], arg1[1] * arg2[1], arg1[2] * arg2[2] }; }
+
 class PatchFilter {
 public:
-    PatchFilter(const vector<V3>& vin);     // filters Lab values based on spread size (ND)
     PatchFilter(const vector<V6>& vin);
+    PatchFilter() = default;
     vector<double> get_dE00_split(int five_or_15, bool zero_ab); // Must be 5, or 15
     vector<double> get_dE00_vals();     // returns array of dE00 point v surround
-    vector<V6> get_rgblab5(bool zero_ab);
+    vector<V6> get_rgblab5(bool zero_ab);   // synthesized rgblab sets
+    vector<V3> lab5;                // measured and filtered
+    vector<double> L_projected;     // calculated L*
+    vector<double> L_sRGB;          // L* of sRGB (Absolute)
+    enum class Intent { REL, RELBPC, ABS } intent;
 private:
-    const int ND;           // distance between RGB: 1, 5
+    int ND;                 // distance between RGB: 1, 5
     vector<V3> lab;         // Lab (L*a*b*) values of sorted, ave, same, rgb patches
     vector<V3> labf;        // low pass filtered Lab
     vector<V3> labfx;       // low pass filtered Lab excluding center
+    vector<V3> sRGB_xyz;    // XYZ from sRGB
 };
 
 vector<int> histogram(vector<double> v, double step, double last);
